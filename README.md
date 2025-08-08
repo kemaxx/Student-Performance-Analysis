@@ -235,8 +235,8 @@ This project is created for educational purposes as part of an HND Computer Scie
 
 ---
 
-**Author:** [Your Name]
-**Institution:** [Your Institution]
+**Author:** Kenneth Mark
+**Institution:** Kaduna Polytechnic
 **Program:** Higher National Diploma in Computer Science
 **Academic Year:** 2024/2025
-**Submission Date:** [Date]
+**Submission Date:** August 8th, 2025
