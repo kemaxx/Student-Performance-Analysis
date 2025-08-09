@@ -75,6 +75,18 @@ st.markdown("""
         color: #721c24 !important;
         font-weight: bold;
     }
+    .high-risk-row {
+        background-color: #ffebee !important;
+        color: #c62828 !important;
+    }
+    .medium-risk-row {
+        background-color: #fff3e0 !important;
+        color: #ef6c00 !important;
+    }
+    .low-risk-row {
+        background-color: #f3e5f5 !important;
+        color: #7b1fa2 !important;
+    }
     /* Force text color in Streamlit containers */
     .stMarkdown .insight-box * {
         color: #333333 !important;
@@ -84,6 +96,22 @@ st.markdown("""
     }
     .stMarkdown .insight-box strong {
         color: #008751 !important;
+    }
+    /* Custom table styling */
+    .at-risk-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+    }
+    .at-risk-table th, .at-risk-table td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+    }
+    .at-risk-table th {
+        background-color: #008751;
+        color: white;
+        font-weight: bold;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -101,6 +129,346 @@ def load_data():
         st.error(f"Error loading data from database: {e}")
         st.info("Please run main.py first to generate the database.")
         return None
+
+
+def calculate_risk_severity(df):
+    """Calculate risk severity score for at-risk students"""
+    risk_students = df[df['At_Risk'] == 1].copy()
+
+    if len(risk_students) == 0:
+        return risk_students
+
+    # Initialize severity score
+    risk_students['Risk_Score'] = 0.0
+
+    # Academic performance factor (40% weight)
+    performance_score = (50 - risk_students['Annual_Average'].clip(upper=50)) / 50 * 40
+    risk_students['Risk_Score'] += performance_score
+
+    # Attendance factor (30% weight)
+    attendance_score = (75 - risk_students['Attendance_Rate'].clip(upper=75)) / 75 * 30
+    risk_students['Risk_Score'] += attendance_score
+
+    # Study hours factor (15% weight)
+    avg_study_hours = df['Study_Hours_Weekly'].mean()
+    study_deficit = np.maximum(0, avg_study_hours - risk_students['Study_Hours_Weekly'])
+    study_score = (study_deficit / avg_study_hours) * 15
+    risk_students['Risk_Score'] += study_score
+
+    # Age factor (10% weight) - older students in same class more at risk
+    for class_level in risk_students['Class'].unique():
+        class_students = risk_students[risk_students['Class'] == class_level]
+        if len(class_students) > 1:
+            avg_age = df[df['Class'] == class_level]['Age'].mean()
+            age_score = np.maximum(0, class_students['Age'] - avg_age) * 5
+            risk_students.loc[risk_students['Class'] == class_level, 'Risk_Score'] += age_score
+
+    # Socio-economic factors (5% weight)
+    socio_score = 0
+    socio_score += np.where(risk_students['Location'] == 'Rural', 2, 0)
+    socio_score += np.where(risk_students['School_Type'] == 'Public', 1, 0)
+    socio_score += np.where(risk_students['Family_Income'] == 'Low', 2, 0)
+    risk_students['Risk_Score'] += socio_score
+
+    # Cap the score at 100
+    risk_students['Risk_Score'] = risk_students['Risk_Score'].clip(upper=100)
+
+    # Classify severity levels
+    risk_students['Risk_Level'] = pd.cut(
+        risk_students['Risk_Score'],
+        bins=[0, 30, 60, 100],
+        labels=['Low Risk', 'Medium Risk', 'High Risk'],
+        include_lowest=True
+    )
+
+    return risk_students
+
+
+def create_at_risk_students_table(df):
+    """Create comprehensive at-risk students table sorted by severity"""
+    st.subheader("⚠️ At-Risk Students Analysis - Severity Ranking")
+
+    # Calculate risk severity
+    risk_students = calculate_risk_severity(df)
+
+    if len(risk_students) == 0:
+        st.success("🎉 Excellent! No students are currently identified as at-risk.")
+        st.info("All students are performing above 50% with adequate attendance rates.")
+        return
+
+    # Sort by risk score (highest risk first)
+    risk_students_sorted = risk_students.sort_values('Risk_Score', ascending=False).reset_index(drop=True)
+
+    # Summary statistics
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        high_risk_count = len(risk_students_sorted[risk_students_sorted['Risk_Level'] == 'High Risk'])
+        st.metric(
+            label="🔴 High Risk",
+            value=high_risk_count,
+            delta=f"{high_risk_count / len(df) * 100:.1f}% of total students"
+        )
+
+    with col2:
+        medium_risk_count = len(risk_students_sorted[risk_students_sorted['Risk_Level'] == 'Medium Risk'])
+        st.metric(
+            label="🟠 Medium Risk",
+            value=medium_risk_count,
+            delta=f"{medium_risk_count / len(df) * 100:.1f}% of total students"
+        )
+
+    with col3:
+        low_risk_count = len(risk_students_sorted[risk_students_sorted['Risk_Level'] == 'Low Risk'])
+        st.metric(
+            label="🟡 Low Risk",
+            value=low_risk_count,
+            delta=f"{low_risk_count / len(df) * 100:.1f}% of total students"
+        )
+
+    with col4:
+        avg_risk_score = risk_students_sorted['Risk_Score'].mean()
+        st.metric(
+            label="📊 Avg Risk Score",
+            value=f"{avg_risk_score:.1f}",
+            delta="Out of 100"
+        )
+
+    # Risk level distribution chart
+    st.subheader("📊 Risk Level Distribution")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Risk level pie chart
+        risk_counts = risk_students_sorted['Risk_Level'].value_counts()
+        fig_pie = px.pie(
+            values=risk_counts.values,
+            names=risk_counts.index,
+            title='At-Risk Students by Severity Level',
+            color_discrete_map={
+                'High Risk': '#dc3545',
+                'Medium Risk': '#fd7e14',
+                'Low Risk': '#ffc107'
+            }
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with col2:
+        # Risk score distribution
+        fig_hist = px.histogram(
+            risk_students_sorted,
+            x='Risk_Score',
+            nbins=15,
+            title='Risk Score Distribution',
+            color='Risk_Level',
+            color_discrete_map={
+                'High Risk': '#dc3545',
+                'Medium Risk': '#fd7e14',
+                'Low Risk': '#ffc107'
+            }
+        )
+        fig_hist.update_layout(xaxis_title="Risk Score", yaxis_title="Number of Students")
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    # Filters for the table
+    st.subheader("🔍 Filter At-Risk Students")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        risk_level_filter = st.multiselect(
+            "Filter by Risk Level:",
+            options=['High Risk', 'Medium Risk', 'Low Risk'],
+            default=['High Risk', 'Medium Risk', 'Low Risk']
+        )
+
+    with col2:
+        class_filter = st.multiselect(
+            "Filter by Class:",
+            options=sorted(risk_students_sorted['Class'].unique()),
+            default=sorted(risk_students_sorted['Class'].unique())
+        )
+
+    with col3:
+        risk_score_range = st.slider(
+            "Risk Score Range:",
+            min_value=0.0,
+            max_value=100.0,
+            value=(0.0, 100.0),
+            step=5.0
+        )
+
+    # Apply filters
+    filtered_students = risk_students_sorted[
+        (risk_students_sorted['Risk_Level'].isin(risk_level_filter)) &
+        (risk_students_sorted['Class'].isin(class_filter)) &
+        (risk_students_sorted['Risk_Score'] >= risk_score_range[0]) &
+        (risk_students_sorted['Risk_Score'] <= risk_score_range[1])
+        ]
+
+    # Main at-risk students table
+    st.subheader(f"📋 At-Risk Students Table ({len(filtered_students)} students)")
+
+    if len(filtered_students) == 0:
+        st.info("No students match the selected filters.")
+        return
+
+    # Prepare display columns
+    display_columns = [
+        'Student_ID', 'Name', 'Class', 'Risk_Level', 'Risk_Score',
+        'Annual_Average', 'Attendance_Rate', 'Study_Hours_Weekly',
+        'Location', 'School_Type', 'Parent_Education', 'Family_Income'
+    ]
+
+    display_data = filtered_students[display_columns].copy()
+
+    # Format the data for better display
+    display_data['Risk_Score'] = display_data['Risk_Score'].round(1)
+    display_data['Annual_Average'] = display_data['Annual_Average'].round(1).astype(str) + '%'
+    display_data['Attendance_Rate'] = display_data['Attendance_Rate'].round(1).astype(str) + '%'
+    display_data['Study_Hours_Weekly'] = display_data['Study_Hours_Weekly'].round(1).astype(str) + 'h'
+
+    # Rename columns for display
+    display_data.columns = [
+        'Student ID', 'Name', 'Class', 'Risk Level', 'Risk Score',
+        'Annual Average', 'Attendance Rate', 'Study Hours/Week',
+        'Location', 'School Type', 'Parent Education', 'Family Income'
+    ]
+
+    # Color-code the dataframe based on risk level
+    def highlight_risk_level(row):
+        risk_level = row['Risk Level']
+        if risk_level == 'High Risk':
+            return ['background-color: #ffebee; color: #c62828'] * len(row)
+        elif risk_level == 'Medium Risk':
+            return ['background-color: #fff3e0; color: #ef6c00'] * len(row)
+        else:  # Low Risk
+            return ['background-color: #f3e5f5; color: #7b1fa2'] * len(row)
+
+    # Display the styled table
+    styled_table = display_data.style.apply(highlight_risk_level, axis=1)
+    st.dataframe(styled_table, use_container_width=True, height=400)
+
+    # Detailed intervention recommendations
+    st.subheader("💡 Intervention Recommendations by Risk Level")
+
+    # High Risk Students
+    high_risk_students = filtered_students[filtered_students['Risk_Level'] == 'High Risk']
+    if len(high_risk_students) > 0:
+        st.markdown("""
+        <div class="insight-box">
+            <h4>🔴 High Risk Students - Immediate Action Required</h4>
+            <ul>
+                <li><strong>Immediate Parent Conference:</strong> Schedule urgent meetings with parents/guardians</li>
+                <li><strong>Individual Learning Plan:</strong> Develop personalized academic support plans</li>
+                <li><strong>Daily Monitoring:</strong> Track attendance and academic progress daily</li>
+                <li><strong>Peer Mentoring:</strong> Pair with high-performing students for support</li>
+                <li><strong>Counseling Support:</strong> Assess for personal/social issues affecting performance</li>
+                <li><strong>Additional Classes:</strong> Provide extra lessons in weak subject areas</li>
+                <li><strong>Study Skills Training:</strong> Intensive study techniques and time management</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Medium Risk Students
+    medium_risk_students = filtered_students[filtered_students['Risk_Level'] == 'Medium Risk']
+    if len(medium_risk_students) > 0:
+        st.markdown("""
+        <div class="insight-box">
+            <h4>🟠 Medium Risk Students - Close Monitoring Required</h4>
+            <ul>
+                <li><strong>Weekly Check-ins:</strong> Regular progress monitoring with class teachers</li>
+                <li><strong>Parent Communication:</strong> Monthly progress reports to parents</li>
+                <li><strong>Study Groups:</strong> Encourage participation in peer study groups</li>
+                <li><strong>Homework Support:</strong> After-school homework assistance programs</li>
+                <li><strong>Subject-Specific Help:</strong> Targeted support in weakest subjects</li>
+                <li><strong>Attendance Incentives:</strong> Rewards for improved attendance patterns</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Low Risk Students
+    low_risk_students = filtered_students[filtered_students['Risk_Level'] == 'Low Risk']
+    if len(low_risk_students) > 0:
+        st.markdown("""
+        <div class="insight-box">
+            <h4>🟡 Low Risk Students - Preventive Measures</h4>
+            <ul>
+                <li><strong>Regular Monitoring:</strong> Bi-weekly progress checks</li>
+                <li><strong>Motivational Support:</strong> Encourage continued effort and improvement</li>
+                <li><strong>Goal Setting:</strong> Help establish realistic academic goals</li>
+                <li><strong>Skill Building:</strong> Focus on study skills and exam techniques</li>
+                <li><strong>Positive Reinforcement:</strong> Recognize improvements and efforts</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Export functionality
+    st.subheader("📤 Export At-Risk Students Data")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Create CSV download
+        csv_data = filtered_students[display_columns].to_csv(index=False)
+        st.download_button(
+            label="📊 Download Full Data (CSV)",
+            data=csv_data,
+            file_name=f"at_risk_students_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+
+    with col2:
+        # Create summary report
+        summary_data = {
+            'Risk_Level': ['High Risk', 'Medium Risk', 'Low Risk', 'Total'],
+            'Count': [
+                len(filtered_students[filtered_students['Risk_Level'] == 'High Risk']),
+                len(filtered_students[filtered_students['Risk_Level'] == 'Medium Risk']),
+                len(filtered_students[filtered_students['Risk_Level'] == 'Low Risk']),
+                len(filtered_students)
+            ],
+            'Percentage': [
+                f"{len(filtered_students[filtered_students['Risk_Level'] == 'High Risk']) / len(df) * 100:.1f}%",
+                f"{len(filtered_students[filtered_students['Risk_Level'] == 'Medium Risk']) / len(df) * 100:.1f}%",
+                f"{len(filtered_students[filtered_students['Risk_Level'] == 'Low Risk']) / len(df) * 100:.1f}%",
+                f"{len(filtered_students) / len(df) * 100:.1f}%"
+            ]
+        }
+        summary_df = pd.DataFrame(summary_data)
+        summary_csv = summary_df.to_csv(index=False)
+
+        st.download_button(
+            label="📈 Download Summary (CSV)",
+            data=summary_csv,
+            file_name=f"at_risk_summary_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+
+    # Class-wise at-risk analysis
+    st.subheader("🏫 Class-wise At-Risk Analysis")
+
+    class_risk_analysis = filtered_students.groupby(['Class', 'Risk_Level']).size().unstack(fill_value=0)
+
+    if not class_risk_analysis.empty:
+        fig_class_risk = px.bar(
+            class_risk_analysis.reset_index(),
+            x='Class',
+            y=['High Risk', 'Medium Risk', 'Low Risk'],
+            title='At-Risk Students by Class and Severity Level',
+            color_discrete_map={
+                'High Risk': '#dc3545',
+                'Medium Risk': '#fd7e14',
+                'Low Risk': '#ffc107'
+            }
+        )
+        fig_class_risk.update_layout(
+            xaxis_title="Class Level",
+            yaxis_title="Number of Students",
+            legend_title="Risk Level"
+        )
+        st.plotly_chart(fig_class_risk, use_container_width=True)
 
 
 def create_overview_metrics(df):
@@ -641,7 +1009,7 @@ def main():
         "Choose Analysis Section:",
         ["Overview", "Class Distribution", "Performance Analysis", "Term Progression",
          "Subject Analysis", "Demographics", "Correlations", "Predictive Models",
-         "Individual Students", "Insights & Recommendations"]
+         "At-Risk Students", "Individual Students", "Insights & Recommendations"]
     )
 
     # Sidebar filters
@@ -704,6 +1072,9 @@ def main():
 
     elif page == "Predictive Models":
         create_prediction_models(filtered_df)
+
+    elif page == "At-Risk Students":
+        create_at_risk_students_table(filtered_df)
 
     elif page == "Individual Students":
         student_lookup_tool(filtered_df)
