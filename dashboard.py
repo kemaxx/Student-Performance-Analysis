@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Nigerian theme
+# Custom CSS for Nigerian theme - FIXED FOR BETTER TEXT VISIBILITY
 st.markdown("""
 <style>
     .main-header {
@@ -40,17 +40,50 @@ st.markdown("""
         border-left: 5px solid #008751;
     }
     .insight-box {
-        background-color: #e8f4e8;
-        padding: 1rem;
+        background-color: #ffffff;
+        padding: 1.5rem;
         border-radius: 10px;
         border-left: 5px solid #008751;
         margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+    }
+    .insight-box h4 {
+        color: #008751 !important;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    .insight-box ul, .insight-box ol {
+        color: #333333 !important;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    .insight-box li {
+        color: #333333 !important;
+        margin-bottom: 0.5rem;
+    }
+    .insight-box li strong {
+        color: #008751 !important;
+        font-weight: bold;
     }
     .at-risk-alert {
         background-color: #ffe6e6;
         padding: 1rem;
         border-radius: 10px;
         border-left: 5px solid #dc3545;
+        color: #721c24 !important;
+        font-weight: bold;
+    }
+    /* Force text color in Streamlit containers */
+    .stMarkdown .insight-box * {
+        color: #333333 !important;
+    }
+    .stMarkdown .insight-box h4 {
+        color: #008751 !important;
+    }
+    .stMarkdown .insight-box strong {
+        color: #008751 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -453,38 +486,38 @@ def create_insights_and_recommendations(df):
     best_parent_ed = df.groupby('Parent_Education')['Annual_Average'].mean().idxmax()
     best_school_type = df.groupby('School_Type')['Annual_Average'].mean().idxmax()
 
-    # Key Insights
+    # Key Insights with better visibility
     st.markdown(f"""
     <div class="insight-box">
-    <h4>🔍 Key Findings - Nigerian Secondary School Performance:</h4>
-    <ul>
-        <li><strong>Overall Pass Rate:</strong> {pass_rate:.1f}% of students scoring above 50%</li>
-        <li><strong>Attendance Impact:</strong> Correlation of {corr_attendance_score:.3f} with performance</li>
-        <li><strong>Study Hours Effect:</strong> Correlation of {corr_study_score:.3f} with performance</li>
-        <li><strong>Location Factor:</strong> {best_location} students perform best ({df.groupby('Location')['Annual_Average'].mean().loc[best_location]:.1f}% average)</li>
-        <li><strong>School Type Impact:</strong> {best_school_type} schools show better performance</li>
-        <li><strong>Parent Education:</strong> {best_parent_ed} level shows highest student performance</li>
-        <li><strong>Risk Level:</strong> {at_risk_pct:.1f}% of students are at-risk (below 50% or poor attendance)</li>
-    </ul>
+        <h4>🔍 Key Findings - Nigerian Secondary School Performance:</h4>
+        <ul>
+            <li><strong>Overall Pass Rate:</strong> {pass_rate:.1f}% of students scoring above 50%</li>
+            <li><strong>Attendance Impact:</strong> Correlation of {corr_attendance_score:.3f} with performance</li>
+            <li><strong>Study Hours Effect:</strong> Correlation of {corr_study_score:.3f} with performance</li>
+            <li><strong>Location Factor:</strong> {best_location} students perform best ({df.groupby('Location')['Annual_Average'].mean().loc[best_location]:.1f}% average)</li>
+            <li><strong>School Type Impact:</strong> {best_school_type} schools show better performance</li>
+            <li><strong>Parent Education:</strong> {best_parent_ed} level shows highest student performance</li>
+            <li><strong>Risk Level:</strong> {at_risk_pct:.1f}% of students are at-risk (below 50% or poor attendance)</li>
+        </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # Recommendations specific to Nigerian education system
+    # Recommendations specific to Nigerian education system with better visibility
     st.markdown("""
     <div class="insight-box">
-    <h4>📋 Strategic Recommendations for Nigerian Secondary Schools:</h4>
-    <ol>
-        <li><strong>Attendance Monitoring:</strong> Implement digital attendance tracking and parent notification system</li>
-        <li><strong>At-Risk Intervention:</strong> Early identification program for students below 50% performance</li>
-        <li><strong>Teacher Training:</strong> Focus on pedagogical skills for subjects with low performance</li>
-        <li><strong>Infrastructure Support:</strong> Prioritize schools in underperforming locations</li>
-        <li><strong>Parent Engagement:</strong> Community education programs to involve parents in academic planning</li>
-        <li><strong>Study Skills Workshop:</strong> Train students on effective study techniques and time management</li>
-        <li><strong>Term Monitoring:</strong> Track performance trends across the three terms</li>
-        <li><strong>Track-Specific Support:</strong> Tailored resources for Science, Arts, and Commercial tracks</li>
-        <li><strong>WAEC/NECO Preparation:</strong> Focused preparation for external examinations</li>
-        <li><strong>Career Guidance:</strong> Post-secondary planning aligned with academic performance</li>
-    </ol>
+        <h4>📋 Strategic Recommendations for Nigerian Secondary Schools:</h4>
+        <ol>
+            <li><strong>Attendance Monitoring:</strong> Implement digital attendance tracking and parent notification system</li>
+            <li><strong>At-Risk Intervention:</strong> Early identification program for students below 50% performance</li>
+            <li><strong>Teacher Training:</strong> Focus on pedagogical skills for subjects with low performance</li>
+            <li><strong>Infrastructure Support:</strong> Prioritize schools in underperforming locations</li>
+            <li><strong>Parent Engagement:</strong> Community education programs to involve parents in academic planning</li>
+            <li><strong>Study Skills Workshop:</strong> Train students on effective study techniques and time management</li>
+            <li><strong>Term Monitoring:</strong> Track performance trends across the three terms</li>
+            <li><strong>Track-Specific Support:</strong> Tailored resources for Science, Arts, and Commercial tracks</li>
+            <li><strong>WAEC/NECO Preparation:</strong> Focused preparation for external examinations</li>
+            <li><strong>Career Guidance:</strong> Post-secondary planning aligned with academic performance</li>
+        </ol>
     </div>
     """, unsafe_allow_html=True)
 
@@ -576,7 +609,7 @@ def student_lookup_tool(df):
                                       color=scores_for_chart,
                                       color_continuous_scale='RdYlGn')
                 fig_subjects.update_layout(xaxis_title="Subjects", yaxis_title="Score (%)")
-                fig_subjects.update_xaxis(tickangle=-45)
+                fig_subjects.update_xaxes(tickangle=-45)
                 st.plotly_chart(fig_subjects, use_container_width=True)
 
 
