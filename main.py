@@ -27,13 +27,13 @@ class StudentPerformanceAnalyzer:
         self.db_connection = sqlite3.connect('student_performance.db')
 
     def generate_sample_data(self, n_students=1000):
-        """Generate realistic Nigerian secondary school student data with percentage system"""
+        """Generate realistic Nigerian secondary school student data with diverse risk levels"""
         np.random.seed(42)
 
         # Student demographics - Nigerian secondary school appropriate
         student_ids = [f"STU{str(i).zfill(4)}" for i in range(1, n_students + 1)]
         names = [f"Student_{i}" for i in range(1, n_students + 1)]
-        ages = np.random.normal(15.5, 1.5, n_students).clip(13, 18).astype(int)  # Nigerian secondary ages
+        ages = np.random.normal(15.5, 1.5, n_students).clip(13, 18).astype(int)
         genders = np.random.choice(['Male', 'Female'], n_students)
         locations = np.random.choice(['Urban', 'Rural', 'Suburban'], n_students, p=[0.35, 0.4, 0.25])
 
@@ -45,9 +45,8 @@ class StudentPerformanceAnalyzer:
         academic_tracks = []
         for i, class_level in enumerate(classes):
             if class_level in ['JSS1', 'JSS2', 'JSS3']:
-                academic_tracks.append('General')  # Junior classes take all subjects
+                academic_tracks.append('General')
             else:
-                # Senior classes choose tracks
                 track = np.random.choice(['Science', 'Arts', 'Commercial'], p=[0.4, 0.35, 0.25])
                 academic_tracks.append(track)
 
@@ -58,27 +57,112 @@ class StudentPerformanceAnalyzer:
                                          n_students, p=[0.4, 0.35, 0.2, 0.05])
         school_type = np.random.choice(['Public', 'Private'], n_students, p=[0.7, 0.3])
 
-        # Academic factors
-        study_hours = np.random.normal(3.5, 1.2, n_students).clip(1, 7)  # More realistic for Nigerian students
-        attendance_rate = np.random.normal(85, 15, n_students).clip(40, 100)
+        # Create diverse risk profiles to ensure all three risk levels
+        # 1. High-risk profile (15% of students) - Very struggling students
+        high_risk_indices = np.random.choice(n_students, size=int(0.15 * n_students), replace=False)
 
-        # Base performance influenced by various factors
-        base_performance = np.random.normal(65, 18, n_students)  # Nigerian grade distribution
+        # 2. Medium-risk profile (20% of students) - Moderately struggling
+        remaining_indices = np.setdiff1d(np.arange(n_students), high_risk_indices)
+        medium_risk_indices = np.random.choice(remaining_indices, size=int(0.20 * n_students), replace=False)
 
-        # Adjust performance based on realistic factors
+        # 3. Low-risk profile (10% of students) - Slightly struggling but recoverable
+        remaining_indices = np.setdiff1d(remaining_indices, medium_risk_indices)
+        low_risk_indices = np.random.choice(remaining_indices, size=int(0.10 * n_students), replace=False)
+
+        # 4. Not at risk (55% of students) - Performing well
+        not_at_risk_indices = np.setdiff1d(remaining_indices, low_risk_indices)
+
+        # Initialize arrays
+        study_hours = np.zeros(n_students)
+        attendance_rate = np.zeros(n_students)
+        base_performance = np.zeros(n_students)
+
+        # Generate characteristics for each risk category
+
+        # HIGH RISK students - Multiple severe problems
+        for idx in high_risk_indices:
+            study_hours[idx] = np.random.normal(1.5, 0.5, 1).clip(0.5, 3.0)[0]  # Very low study hours
+            attendance_rate[idx] = np.random.normal(55, 10, 1).clip(30, 70)[0]  # Poor attendance
+            base_performance[idx] = np.random.normal(35, 8, 1).clip(20, 45)[0]  # Very poor performance
+
+            # Make socioeconomic factors worse for high-risk students
+            if np.random.random() < 0.6:  # 60% chance of rural location
+                locations[idx] = 'Rural'
+            if np.random.random() < 0.8:  # 80% chance of public school
+                school_type[idx] = 'Public'
+            if np.random.random() < 0.7:  # 70% chance of low/primary education parents
+                parent_education[idx] = np.random.choice(['Primary', 'Secondary'], p=[0.6, 0.4])
+            if np.random.random() < 0.8:  # 80% chance of low income
+                family_income[idx] = 'Low'
+
+        # MEDIUM RISK students - Some problems but not all severe
+        for idx in medium_risk_indices:
+            study_hours[idx] = np.random.normal(2.5, 0.8, 1).clip(1.5, 4.0)[0]  # Low-moderate study hours
+            attendance_rate[idx] = np.random.normal(68, 8, 1).clip(55, 78)[0]  # Moderate attendance issues
+            base_performance[idx] = np.random.normal(48, 6, 1).clip(40, 55)[0]  # Below average performance
+
+            # Mixed socioeconomic factors
+            if np.random.random() < 0.4:  # 40% chance of rural
+                locations[idx] = 'Rural'
+            if np.random.random() < 0.6:  # 60% chance of public school
+                school_type[idx] = 'Public'
+            if np.random.random() < 0.5:  # 50% chance of lower education parents
+                parent_education[idx] = np.random.choice(['Primary', 'Secondary'], p=[0.3, 0.7])
+
+        # LOW RISK students - Minor issues, mostly recoverable
+        for idx in low_risk_indices:
+            study_hours[idx] = np.random.normal(3.2, 0.6, 1).clip(2.5, 4.5)[0]  # Decent study hours
+            attendance_rate[idx] = np.random.normal(72, 5, 1).clip(65, 80)[0]  # Slightly low attendance
+            base_performance[idx] = np.random.normal(52, 4, 1).clip(47, 58)[0]  # Just slightly struggling
+
+            # Better socioeconomic factors
+            if np.random.random() < 0.3:  # 30% chance of rural
+                locations[idx] = 'Rural'
+
+        # NOT AT RISK students - Performing well
+        for idx in not_at_risk_indices:
+            study_hours[idx] = np.random.normal(4.2, 1.0, 1).clip(2.5, 7.0)[0]  # Good study hours
+            attendance_rate[idx] = np.random.normal(88, 8, 1).clip(75, 100)[0]  # Good attendance
+            base_performance[idx] = np.random.normal(72, 15, 1).clip(55, 95)[0]  # Good performance
+
+        # Apply additional performance adjustments based on factors
         performance_adjustment = np.zeros(n_students)
-        performance_adjustment += (study_hours - 3.5) * 4  # Study hours effect
-        performance_adjustment += (attendance_rate - 85) * 0.2  # Attendance effect
-        performance_adjustment += np.where(parent_education == 'Postgraduate', 12, 0)
-        performance_adjustment += np.where(parent_education == 'HND/BSc', 8, 0)
-        performance_adjustment += np.where(parent_education == 'NCE/OND', 5, 0)
-        performance_adjustment += np.where(parent_education == 'Secondary', 2, 0)
-        performance_adjustment += np.where(family_income == 'High', 8, 0)
-        performance_adjustment += np.where(family_income == 'Upper Middle', 5, 0)
-        performance_adjustment += np.where(family_income == 'Middle', 2, 0)
-        performance_adjustment += np.where(school_type == 'Private', 6, 0)  # Private school advantage
 
-        adjusted_performance = (base_performance + performance_adjustment).clip(20, 95)
+        # Parent education effects
+        for i, edu in enumerate(parent_education):
+            if edu == 'Postgraduate':
+                performance_adjustment[i] += 8
+            elif edu == 'HND/BSc':
+                performance_adjustment[i] += 5
+            elif edu == 'NCE/OND':
+                performance_adjustment[i] += 3
+            elif edu == 'Secondary':
+                performance_adjustment[i] += 1
+
+        # Family income effects
+        for i, income in enumerate(family_income):
+            if income == 'High':
+                performance_adjustment[i] += 6
+            elif income == 'Upper Middle':
+                performance_adjustment[i] += 4
+            elif income == 'Middle':
+                performance_adjustment[i] += 2
+
+        # School type effects
+        for i, stype in enumerate(school_type):
+            if stype == 'Private':
+                performance_adjustment[i] += 4
+
+        # Location effects
+        for i, loc in enumerate(locations):
+            if loc == 'Urban':
+                performance_adjustment[i] += 2
+            elif loc == 'Suburban':
+                performance_adjustment[i] += 1
+
+        # Apply adjustments with some variation
+        adjusted_performance = base_performance + performance_adjustment * 0.7  # Reduce impact slightly
+        adjusted_performance = adjusted_performance.clip(20, 95)
 
         # Nigerian secondary school subject structure
         track_subjects = {
@@ -91,7 +175,7 @@ class StudentPerformanceAnalyzer:
                            'Data_Processing']
         }
 
-        # Generate term scores (3 terms per academic session)
+        # Generate subject scores with realistic term progression
         subject_data = {}
         all_possible_subjects = set()
         for subjects_list in track_subjects.values():
@@ -118,13 +202,27 @@ class StudentPerformanceAnalyzer:
                 difficulty_adj = subject_difficulty.get(subject, 0)
 
                 # Generate three term scores with realistic progression
-                term1_score = (student_base_performance + difficulty_adj + np.random.normal(0, 8)).clip(20, 95)
+                term1_score = (student_base_performance + difficulty_adj + np.random.normal(0, 5)).clip(15, 95)
 
-                # Term 2 usually shows slight improvement
-                term2_score = (term1_score + np.random.normal(2, 6)).clip(20, 95)
+                # Term 2 progression depends on risk level
+                if i in high_risk_indices:
+                    term2_score = (term1_score + np.random.normal(-2, 4)).clip(15, 95)  # Might get worse
+                elif i in medium_risk_indices:
+                    term2_score = (term1_score + np.random.normal(0, 5)).clip(15, 95)  # Mixed results
+                elif i in low_risk_indices:
+                    term2_score = (term1_score + np.random.normal(2, 4)).clip(15, 95)  # Slight improvement
+                else:
+                    term2_score = (term1_score + np.random.normal(3, 6)).clip(15, 95)  # Good improvement
 
-                # Term 3 might show fatigue or continued improvement
-                term3_score = (term2_score + np.random.normal(-1, 7)).clip(20, 95)
+                # Term 3 - final term effects
+                if i in high_risk_indices:
+                    term3_score = (term2_score + np.random.normal(-1, 6)).clip(15, 95)  # Continued struggle
+                elif i in medium_risk_indices:
+                    term3_score = (term2_score + np.random.normal(1, 5)).clip(15, 95)  # Some recovery
+                elif i in low_risk_indices:
+                    term3_score = (term2_score + np.random.normal(3, 4)).clip(15, 95)  # Good recovery
+                else:
+                    term3_score = (term2_score + np.random.normal(1, 7)).clip(15, 95)  # Maintained or improved
 
                 subject_data[f'{subject}_Term1'][i] = round(term1_score, 1)
                 subject_data[f'{subject}_Term2'][i] = round(term2_score, 1)
@@ -158,8 +256,46 @@ class StudentPerformanceAnalyzer:
             else:
                 annual_average[i] = np.nan
 
-        # Determine at-risk status (Nigerian context: below 50% or poor attendance)
-        at_risk = ((annual_average < 50) | (attendance_rate < 75)).astype(int)
+        # NEW: More sophisticated at-risk determination with three levels
+        at_risk_status = np.zeros(n_students, dtype=int)
+
+        # Mark students as at-risk based on multiple criteria
+        for i in range(n_students):
+            risk_factors = 0
+
+            # Academic performance factor
+            if annual_average[i] < 50:
+                risk_factors += 3  # Major factor
+            elif annual_average[i] < 60:
+                risk_factors += 1  # Minor factor
+
+            # Attendance factor
+            if attendance_rate[i] < 65:
+                risk_factors += 3  # Major factor
+            elif attendance_rate[i] < 75:
+                risk_factors += 1  # Minor factor
+
+            # Study hours factor
+            if study_hours[i] < 2:
+                risk_factors += 2  # Moderate factor
+            elif study_hours[i] < 3:
+                risk_factors += 1  # Minor factor
+
+            # Age factor (older students in same class)
+            class_students = [j for j, c in enumerate(classes) if c == classes[i]]
+            avg_age_in_class = np.mean([ages[j] for j in class_students])
+            if ages[i] > avg_age_in_class + 1:
+                risk_factors += 1
+
+            # Socioeconomic factors
+            if locations[i] == 'Rural' and family_income[i] == 'Low':
+                risk_factors += 1
+            if parent_education[i] == 'Primary' and family_income[i] == 'Low':
+                risk_factors += 1
+
+            # Determine at-risk status (any student with risk_factors >= 2 is considered at-risk)
+            if risk_factors >= 2:
+                at_risk_status[i] = 1
 
         # Nigerian secondary school appropriate extracurriculars
         extracurricular = np.random.choice(['Sports', 'Drama/Cultural', 'Debate', 'Science Club',
@@ -188,7 +324,7 @@ class StudentPerformanceAnalyzer:
             'Extracurricular': extracurricular,
             'Post_Secondary_Aspiration': post_secondary_aspiration,
             'Annual_Average': annual_average.round(1),
-            'At_Risk': at_risk
+            'At_Risk': at_risk_status
         }
 
         # Add term averages
@@ -196,9 +332,23 @@ class StudentPerformanceAnalyzer:
             data[term] = averages.round(1)
 
         # Add subject scores for all terms
-        data.update(subject_data)
+        data.update({k: v.round(1) if isinstance(v[0], (int, float)) and not np.isnan(v[0]) else v
+                     for k, v in subject_data.items()})
 
         self.df = pd.DataFrame(data)
+
+        # Print statistics about risk distribution
+        total_at_risk = np.sum(at_risk_status)
+        print(f"\n=== RISK DISTRIBUTION IN GENERATED DATA ===")
+        print(f"Total students: {n_students}")
+        print(f"Students at risk: {total_at_risk} ({total_at_risk / n_students * 100:.1f}%)")
+        print(
+            f"High-risk profile students: {len(high_risk_indices)} ({len(high_risk_indices) / n_students * 100:.1f}%)")
+        print(
+            f"Medium-risk profile students: {len(medium_risk_indices)} ({len(medium_risk_indices) / n_students * 100:.1f}%)")
+        print(f"Low-risk profile students: {len(low_risk_indices)} ({len(low_risk_indices) / n_students * 100:.1f}%)")
+        print(f"Not at-risk students: {len(not_at_risk_indices)} ({len(not_at_risk_indices) / n_students * 100:.1f}%)")
+
         return self.df
 
     def save_to_database(self):
@@ -264,25 +414,18 @@ class StudentPerformanceAnalyzer:
         for aspiration, data in aspiration_analysis.iterrows():
             print(f"{aspiration.replace('_', ' ')}: {data['count']} students - Avg Score: {data['mean']:.1f}%")
 
+    # ... (keeping all other methods the same as in original main.py)
     def perform_correlation_analysis(self):
         """Analyze correlations between different factors"""
-        # Core numeric columns that exist for all students
         core_numeric_columns = ['Age', 'Study_Hours_Weekly', 'Attendance_Rate', 'Annual_Average']
-
-        # Add term averages for progression analysis
         term_columns = ['Term1_Average', 'Term2_Average', 'Term3_Average']
-
-        # Universal subjects (taken by most students)
         universal_subjects = []
         if 'Mathematics_Term1' in self.df.columns:
             universal_subjects.extend(['Mathematics_Term1', 'Mathematics_Term2', 'Mathematics_Term3'])
         if 'English_Term1' in self.df.columns:
             universal_subjects.extend(['English_Term1', 'English_Term2', 'English_Term3'])
 
-        # Combine for correlation analysis
-        correlation_columns = core_numeric_columns + term_columns + universal_subjects[:6]  # Limit for readability
-
-        # Only include columns that exist and have sufficient non-null values
+        correlation_columns = core_numeric_columns + term_columns + universal_subjects[:6]
         existing_columns = [col for col in correlation_columns if col in self.df.columns]
         correlation_data = self.df[existing_columns].dropna()
 
@@ -586,17 +729,29 @@ class StudentPerformanceAnalyzer:
         print("   • Consider location-based support programs")
         print("   • Develop parent engagement programs")
 
+        # NEW: Risk level distribution analysis
+        print(f"\n🚨 RISK LEVEL DISTRIBUTION PREVIEW:")
+        at_risk_students = self.df[self.df['At_Risk'] == 1]
+        if len(at_risk_students) > 0:
+            print(
+                f"   • High-Risk Profile Students (Very low performance + attendance): {len(at_risk_students[at_risk_students['Annual_Average'] < 40])}")
+            print(
+                f"   • Medium-Risk Profile Students (Moderate issues): {len(at_risk_students[(at_risk_students['Annual_Average'] >= 40) & (at_risk_students['Annual_Average'] < 55)])}")
+            print(
+                f"   • Low-Risk Profile Students (Minor issues): {len(at_risk_students[at_risk_students['Annual_Average'] >= 55])}")
+            print("   • Note: Dashboard will provide detailed risk severity analysis")
+
 
 def main():
     """Main function to run the analysis"""
     # Initialize the analyzer
     analyzer = StudentPerformanceAnalyzer()
 
-    print("Student Performance Analysis System")
-    print("=" * 50)
+    print("Nigerian Secondary School Performance Analysis System")
+    print("=" * 60)
 
-    # Generate or load data
-    print("Generating sample data...")
+    # Generate or load data with improved risk distribution
+    print("Generating sample data with diverse risk profiles...")
     df = analyzer.generate_sample_data(1000)
     print(f"Generated data for {len(df)} students")
 
@@ -627,7 +782,8 @@ def main():
 
     print("\n" + "=" * 60)
     print("Analysis completed successfully!")
-    print("Check the generated visualizations and database file.")
+    print("Data now optimized for three-tier risk level analysis in dashboard!")
+    print("Run 'streamlit run dashboard.py' to view the enhanced dashboard.")
     print("=" * 60)
 
 
