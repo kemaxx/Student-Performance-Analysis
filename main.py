@@ -138,6 +138,11 @@ class StudentPerformanceAnalyzer:
             subject_grades = (base_subject_score + subject_variation).clip(0, 100)
             subject_data[f'{subject}_Grade'] = subject_grades.round(1)
 
+
+        # Compute Annual Average as the mean of all subject grades
+        subject_cols = [col for col in subject_data.keys()]
+        annual_average = np.mean([subject_data[col] for col in subject_cols], axis=0)
+
         
         # Calculate overall GPA
         grade_columns = [f'{subject}_Grade' for subject in subjects]
@@ -149,6 +154,20 @@ class StudentPerformanceAnalyzer:
         
         # Extracurricular activities
         extracurricular = np.random.choice(['Sports', 'Arts', 'Science Club', 'None'], n_students, p=[0.3, 0.2, 0.2, 0.3])
+
+        # Add class levels (JSS1–SS3) distribution
+        classes = np.random.choice(['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'],size=n_students,p=[0.15, 0.15, 0.15, 0.15, 0.2, 0.2])  # tweak proportions as needed
+
+        # Add academic track only for senior classes
+        academic_track = []
+        for c in classes:
+            if c in ['SS1', 'SS2', 'SS3']:
+                academic_track.append(np.random.choice(['Science', 'Arts', 'Commercial']))
+            else:
+                academic_track.append('General')
+
+        # Add school type (Public vs Private)
+        school_types = np.random.choice(['Public', 'Private'],size=n_students,p=[0.7, 0.3])  # adjust proportions as needed
         
         # Create DataFrame
         data = {
@@ -163,7 +182,11 @@ class StudentPerformanceAnalyzer:
             'Attendance_Rate': attendance_rate.round(1),
             'Extracurricular': extracurricular,
             'Overall_GPA': overall_gpa.round(2),
-            'At_Risk': at_risk
+            'At_Risk': at_risk,
+            'Class': classes,
+            'Academic_Track': academic_track,
+            'School_Type': school_types,
+            'Annual_Average': annual_average.round(2)
         }
         
         # Add subject grades
