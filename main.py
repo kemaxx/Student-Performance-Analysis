@@ -64,14 +64,16 @@ class StudentPerformanceAnalyzer:
         # Parent education effects
         for i, edu in enumerate(parent_education):
             if edu == 'Postgraduate':
-                performance_adjustment[i] += 8
+                performance_adjustment[i] += 10
             elif edu == 'HND/BSc':
-                performance_adjustment[i] += 5
+                performance_adjustment[i] += 6
             elif edu == 'NCE/OND':
-                performance_adjustment[i] += 3
+                performance_adjustment[i] += 2
             elif edu == 'Secondary':
-                performance_adjustment[i] += 1
-            # Primary gets 0 (no bonus)
+                performance_adjustment[i] += 0
+            elif edu == 'Primary':
+                performance_adjustment[i] += -1
+
         performance_adjustment += np.where(family_income == 'High', 5, 0)
         performance_adjustment += np.where(family_income == 'Middle', 2, 0)
         
