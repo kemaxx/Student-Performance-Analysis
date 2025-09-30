@@ -112,6 +112,7 @@ class StudentPerformanceAnalyzer:
             'CRK_IRK': 3
         }
 
+
         # Generate student aptitude patterns
         science_aptitude = np.random.normal(0, 6, n_students)
         language_aptitude = np.random.normal(0, 5, n_students)
@@ -147,9 +148,9 @@ class StudentPerformanceAnalyzer:
                 
                 # Apply aptitude bonuses based on subject type
                 if subject in ['Mathematics', 'Further_Mathematics', 'Physics', 'Chemistry', 'Biology', 'Basic_Science']:
-                    base_subject_score += science_aptitude[i] * 0.7
+                    base_subject_score += science_aptitude[i] * 0.8
                 elif subject in ['English', 'Literature', 'CRK_IRK']:
-                    base_subject_score += language_aptitude[i] * 0.8
+                    base_subject_score += language_aptitude[i] * 0.5
                 elif subject in ['Economics', 'Accounting', 'Commerce', 'Government', 'Basic_Technology']:
                     base_subject_score += analytical_aptitude[i] * 0.6
                 
@@ -169,6 +170,7 @@ class StudentPerformanceAnalyzer:
                     term_variation = np.random.normal(term_idx * 0.5, 3)
                     term_score = np.clip(base_subject_score + term_variation, 0, 100)
                     subject_data[f'{subject}_{term}'][i] = round(term_score, 1)
+                    
 
         # Calculate term averages only from subjects each student actually takes
         term_averages = {}
@@ -203,17 +205,17 @@ class StudentPerformanceAnalyzer:
                 annual_average[i] = np.mean(student_term_avgs)
 
         # Calculate overall GPA (same as annual average for this system)
-        overall_gpa = annual_average.copy()
+        # overall_gpa = annual_average.copy()
          
         # Determine at-risk status (GPA < 60 or attendance < 70%)
-        at_risk = ((overall_gpa < 60) | (attendance_rate < 70)).astype(int)
+        at_risk = ((annual_average < 60) | (attendance_rate < 70)).astype(int)
         
         # Extracurricular activities
         extracurricular = np.random.choice(['Sports', 'Arts', 'Science Club', 'None'], 
-                                           n_students, p=[0.3, 0.2, 0.2, 0.3])
+                                           n_students, p=[0.4, 0.15, 0.15, 0.3])
 
         # Add school type (Public vs Private)
-        school_types = np.random.choice(['Public', 'Private'], size=n_students, p=[0.7, 0.3])
+        school_types = np.random.choice(['Public', 'Private'], size=n_students, p=[0.75, 0.25])
         
         # Create DataFrame
         data = {
@@ -227,7 +229,6 @@ class StudentPerformanceAnalyzer:
             'Study_Hours_Weekly': study_hours.round(1),
             'Attendance_Rate': attendance_rate.round(1),
             'Extracurricular': extracurricular,
-            'Overall_GPA': np.nan_to_num(overall_gpa, nan=0).round(2),
             'At_Risk': at_risk,
             'Class': classes,
             'Academic_Track': academic_track,
